@@ -8,8 +8,9 @@ export function Asteroid() {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const { camera } = useThree();
-  const { asteroid, status, setAsteroidPosition, setStatus, showTrajectory } = useSimulationStore();
+  const { asteroid, status, setAsteroidPosition, setAsteroidParams, setStatus, showTrajectory } = useSimulationStore();
   const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ screenPos: THREE.Vector2; asteroidPos: THREE.Vector3; angle: number; velocity: number } | null>(null);
 
   const scale = useMemo(() => {
     const minScale = 0.1;
@@ -55,10 +56,24 @@ export function Asteroid() {
     e.stopPropagation();
     setIsDragging(true);
     setStatus('dragging');
+    
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      dragStartRef.current = {
+        screenPos: new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          -((e.clientY - rect.top) / rect.height) * 2 + 1
+        ),
+        asteroidPos: asteroid.position.clone(),
+        angle: asteroid.angle,
+        velocity: asteroid.velocity,
+      };
+    }
   };
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!isDragging) return;
+    if (!isDragging || !dragStartRef.current) return;
     
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -69,6 +84,23 @@ export function Asteroid() {
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    const screenDelta = new THREE.Vector2(
+      mouse.x - dragStartRef.current.screenPos.x,
+      mouse.y - dragStartRef.current.screenPos.y
+    );
+    
+    const angleDelta = screenDelta.x * 60;
+    const velocityDelta = -screenDelta.y * 50;
+    
+    const newAngle = Math.max(
+      DEFAULT_PARAMS.MIN_ANGLE,
+      Math.min(DEFAULT_PARAMS.MAX_ANGLE, dragStartRef.current.angle + angleDelta)
+    );
+    const newVelocity = Math.max(
+      DEFAULT_PARAMS.MIN_VELOCITY,
+      Math.min(DEFAULT_PARAMS.MAX_VELOCITY, dragStartRef.current.velocity + velocityDelta)
+    );
     
     raycaster.setFromCamera(mouse, camera);
     
@@ -81,11 +113,14 @@ export function Asteroid() {
     if (intersects.length > 0) {
       setAsteroidPosition(intersects[0].point);
     }
-  }, [isDragging, camera, setAsteroidPosition]);
+    
+    setAsteroidParams({ angle: newAngle, velocity: newVelocity });
+  }, [isDragging, camera, setAsteroidPosition, setAsteroidParams]);
 
   const handlePointerUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
+      dragStartRef.current = null;
       if (status === 'dragging') {
         setStatus('idle');
       }

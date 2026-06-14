@@ -163,8 +163,8 @@ export function ControlPanel() {
               } disabled:opacity-50`}
             >
               <span
-                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${
-                  showTrajectory ? 'translate-x-7' : 'translate-x-1'
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-md ${
+                  showTrajectory ? 'left-[26px]' : 'left-0.5'
                 }`}
               />
             </button>
